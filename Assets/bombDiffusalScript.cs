@@ -1010,503 +1010,167 @@ public class bombDiffusalScript : MonoBehaviour
     }
 
 #pragma warning disable 414
+    Dictionary<string, string[]> aliases = new Dictionary<string, string[]>() {
+            {      "Destination",  new string[] { "Destinations", "Dest", } },
+            {       "Components",  new string[] { "Components", "Comp", "Component" } },
+            {        "Batteries",  new string[] { "Battery", "Batteries", "Batt" } },
+            {       "Indicators",  new string[] { "Indicator", "Indi", "Ind" } },
+            {          "Manuals",  new string[] { "Manual", "Man", "Manu" } },
+            {            "Ports",  new string[] { "Port", "Pt" } },
+            {           "Sector",  new string[] { "Sectors", "Sect" } },
+            {           "Submit",  new string[] { "Sub", "Go", "Answer", "Send" } },
+            {           "USA #1",  new string[] { "USA 1", "USA#1", "USA1" } },
+            {           "USA #2",  new string[] { "USA 2", "USA#2", "USA2" } },
+            {  "Rest of America",  new string[] { "RestOfAmerica", "RestOf America", "Rest OfAmerica", "America" } },
+            {              "PS2",  new string[] { "PS/2", "PS" } },
+            {       "Stereo RCA",  new string[] { "StereoRCA", "RCA" } },
+            {  "Component Video",  new string[] { "ComponentVideo", "Component" } },
+            {         "AC Power",  new string[] { "AC", "ACPower" } },
+            {  "Composite Video",  new string[] { "CompositeVideo", "Composite" } },
+        };
+    bool coroutineRunning;
     bool TwitchShouldCancelCommand;
-    private readonly string TwitchHelpMessage = "Open the specified menu with \"!{0} open Main/Destination/Components\" Go back to the main menu with \"!{0} back\"\n" +
-        "Set both the destination's sector and area with \"!{0} set destination <Sector Name>;<Area Name>\" (',' can be used instead of ';'.)"
-        + "Set just the destination's sector or area with \"!{0} set sector/area <Sector Name>/<Area Name>\""
-        + "Set the specified components with \"!{0} set component batteries/manuals/indicators #\""
-        + "Cycle the options on the ports left or right with \"!{0} component cycleports left/right\" \"set\" is optional. To check on the ports, you may use \"!{0} tilt r\" to check. (This is a general TP command.) Submit the configurations with \"!{0} go/submit/send\"";
+    private readonly string TwitchHelpMessage = "Use !{0} destination <sector>,<area> | sector <sector> | area <area> | port <port> | components #/#/# | batteries/indicators/manuals <#> | cycle left/right | submit.";
 #pragma warning restore 414
     IEnumerator ProcessTwitchCommand(string command)
     {
-        if (Application.isEditor)
-        {
-            command = command.Trim();
-        }
-        if (menus[3].activeSelf)
-        {
-            yield return "sendtochaterror {0}, Bomb Diffusal (#{1}) is printing out the receipt. No other commands can be accepted.";
-            yield break;
-        }
-        string intereptedCommand = command.Trim().ToLower();
-        if (Regex.IsMatch(command, @"^(go|submit|send)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-        {
-            yield return null;
-            if (menus[1].activeSelf)
-            {
-                destinationBack.OnInteract();
-                yield return new WaitForSeconds(0.1f);
-            }
-            else if (menus[2].activeSelf)
-            {
-                componentBack.OnInteract();
-                yield return new WaitForSeconds(0.1f);
-            }
-            goButton.OnInteract();
-            if (menus[3].activeSelf)
-            {
-                yield return "solve";
-            }
-            yield break;
-        }
-        else if (Regex.IsMatch(command, @"^back\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-        {
-            yield return null;
-            if (menus[1].activeSelf)
-            {
-                destinationBack.OnInteract();
-            }
-            else if (menus[2].activeSelf)
-            {
-                componentBack.OnInteract();
-            }
-            else if (menus[0].activeSelf == true)
-            {
-                yield return "sendtochat Has {0} gone back enough on Bomb Diffusal (#{1})?";
-            }
-            yield break;
-        }
-        else if (Regex.IsMatch(command, @"^open\s", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-        {
-            intereptedCommand = intereptedCommand.Substring(5);
-            Dictionary<int, string[]> menuIdIntereperations = new Dictionary<int, string[]>() {
-                { 0, new string[] { "Main" } },
-                { 1, new string[] { "Destination", "Dest" } },
-                { 2, new string[] { "Components", "Component", "Comp" } },
-            };// 0 being the main menu, 1 being the destination, 2 being the component, 3 being the receipt menu
-            int destinationID = -1;
+        string[] areaList =   areaNames.Values.ToArray();   areaList = Array.ConvertAll(areaList, d => d.ToLower());
+        string[] sectList = sectorNames.Values.ToArray();   sectList = Array.ConvertAll(sectList, d => d.ToLower());
+        int areaPos, sectPos;
+        string[] cmd = new string[2];
 
-            foreach (KeyValuePair<int, string[]> curIntereptation in menuIdIntereperations)
+        command = command.ToLowerInvariant().Trim();
+        Match m = Regex.Match(command, @"^(\w+)\s(.+)$");
+        if (!m.Success || menus[3].activeSelf) yield break;
+        for (int i = 0; i < 2; i++) {
+            cmd[i] = m.Groups[i+1].Value.ToString().Trim().ToLowerInvariant();
+            foreach (KeyValuePair<string, string[]> alias in aliases)
             {
-                if (curIntereptation.Value.Any(a => a.EqualsIgnoreCase(intereptedCommand)))
+                if (alias.Value.Any(a => a.EqualsIgnoreCase(cmd[i])))
                 {
-                    destinationID = curIntereptation.Key;
+                    cmd[i] = alias.Key.ToLowerInvariant();
                     break;
                 }
             }
-            if (destinationID < 0 || destinationID > 2)
-            {
-                yield return string.Format("sendtochaterror I cannot find the menu \"{0}\" in the directory.", intereptedCommand);
-                yield break;
-            }
-            if (menus[destinationID].activeSelf)
-            {
-                yield return string.Format("sendtochaterror I am already in the menu \"{0}\" in the directory.", intereptedCommand);
-                yield break;
-            }
-            KMSelectable[] respectiveDestinationButtons = { null, destinationButton, componentButton };
-            if (menus[1].activeSelf)
-            {
-                yield return null;
-                destinationBack.OnInteract();
-                yield return new WaitForSeconds(0.1f);
-            }
-            else if (menus[2].activeSelf)
-            {
-                yield return null;
-                componentBack.OnInteract();
-                yield return new WaitForSeconds(0.1f);
-            }
-            if (respectiveDestinationButtons[destinationID] != null)
-            {
-                yield return null;
-                respectiveDestinationButtons[destinationID].OnInteract();
-            }
-            yield break;
         }
-        else
-        {
-            if (Regex.IsMatch(command, @"^set\s", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-            {
-                command = command.Substring(3).Trim();
-                intereptedCommand = intereptedCommand.ToLowerInvariant().Replace("set", "").Trim();
-            }
-            if (Regex.IsMatch(command, @"^destination\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-            {
-                Dictionary<string, string[]> alternativeSectorNames = new Dictionary<string, string[]>() {
-                                {"USA #1",  new string[] { "USA 1", "USA#1", "USA1" } },
-                                {"USA #2",  new string[] { "USA 2", "USA#2", "USA2" } },
-                                {"Rest of America",  new string[] { "RestOfAmerica", "RestOf America", "Rest OfAmerica" } },
-                            };
-                string[] intereptedParts = intereptedCommand.ToLowerInvariant().Replace("destination","").Trim().Split(new char[] { ',', ';' });
-                if (intereptedParts.Length != 2)
-                {
-                    yield return string.Format("sendtochaterror You provided {0} than 2 pieces of infomation for setting the destination. I expected exactly 2, the sector name and the area name.", intereptedParts.Length > 2 ? "more" : "less");
-                    yield break;
-                }
-                string intereptedSectorName = intereptedParts[0].Trim();
-                string intereptedAreaName = intereptedParts[1].Trim();
-                foreach (KeyValuePair<string, string[]> altSectorNames in alternativeSectorNames)
-                {
-                    if (altSectorNames.Value.Any(a => a.EqualsIgnoreCase(intereptedSectorName)))
+        
+        switch (cmd[0]) {
+            case "destination":
+                if ( !Regex.IsMatch(cmd[1], @"^([a-zA-Z12 #]+)([,;])([a-zA-Z0-9 -]+)$")) yield break;
+                string[] parts = cmd[1].Split(new char[] { ',', ';'});
+                for (int i = 0; i < parts.Length; i++) {
+                    parts[i] = parts[i].Trim().ToLowerInvariant();
+                    foreach (KeyValuePair<string, string[]> alias in aliases)
                     {
-                        intereptedSectorName = altSectorNames.Key;
-                        break;
-                    }
-                }
-                bool directionR = rnd.value < 0.5f, successful = false;
-                if (!menus[1].activeSelf)
-                {
-                    /*
-                    if (menus[2].activeSelf)
-                    {
-                        yield return null;
-                        componentBack.OnInteract();
-                    }
-                    yield return null;
-                    destinationButton.OnInteract();*/
-                    yield return string.Format("sendtochaterror I am not at the menu for setting the destination. Open that up first before using this.");
-                    yield break;
-                }
-                for (int x = 0; x < 6 && !successful; x++)
-                {
-                    yield return null;
-                    if (directionR)
-                        nextSector.OnInteract();
-                    else
-                        prevSector.OnInteract();
-                    if (sectorNames[selectedDestination / 100].EqualsIgnoreCase(intereptedSectorName))
-                    {
-                        successful = true;
-                    }
-                    yield return new WaitForSeconds(0.1f);
-                }
-                if (!successful)
-                {
-                    yield return string.Format("sendtochaterror I cannot find the given sector \"{0}\" in the directory.", intereptedSectorName);
-                    yield break;
-                }
-                directionR = rnd.value < 0.5f;
-                successful = false;
-                for (int x = 0; x < 25 && !successful; x++)
-                {
-                    yield return null;
-                    if (directionR)
-                        nextArea.OnInteract();
-                    else
-                        prevArea.OnInteract();
-                    if (areaNames[selectedDestination].EqualsIgnoreCase(intereptedAreaName))
-                    {
-                        successful = true;
-                    }
-                    yield return new WaitForSeconds(0.1f);
-                }
-                if (!successful)
-                {
-                    yield return string.Format("sendtochaterror I cannot find the given area \"{0}\" in the directory.", intereptedAreaName);
-                    yield break;
-                }
-
-            }
-            else if (Regex.IsMatch(command, @"^sector\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-            {
-                Dictionary<string, string[]> alternativeSectorNames = new Dictionary<string, string[]>() {
-                                {"USA #1",  new string[] { "USA 1", "USA#1", "USA1" } },
-                                {"USA #2",  new string[] { "USA 2", "USA#2", "USA2" } },
-                                {"Rest of America",  new string[] { "RestOfAmerica", "RestOf America", "Rest OfAmerica" } },
-                            };
-                string intereptedSectorName = intereptedCommand.Substring(7).Trim();
-
-                foreach (KeyValuePair<string, string[]> altSectorNames in alternativeSectorNames)
-                {
-                    if (altSectorNames.Value.Any(a => a.EqualsIgnoreCase(intereptedSectorName)))
-                    {
-                        intereptedSectorName = altSectorNames.Key;
-                        break;
-                    }
-                }
-                bool directionR = rnd.value < 0.5f, successful = false;
-                if (!menus[1].activeSelf)
-                {
-                    /*
-                    if (menus[2].activeSelf)
-                    {
-                        yield return null;
-                        componentBack.OnInteract();
-                        yield return new WaitForSeconds(0.1f);
-                    }
-                    yield return null;
-                    destinationButton.OnInteract();
-                    yield return new WaitForSeconds(0.1f);
-                    */
-                    yield return string.Format("sendtochaterror I am not at the menu for setting the sector. Open destination up first before using this.");
-                    yield break;
-                }
-                for (int x = 0; x < 6 && !successful; x++)
-                {
-                    yield return null;
-                    if (directionR)
-                        nextSector.OnInteract();
-                    else
-                        prevSector.OnInteract();
-                    if (sectorNames[selectedDestination / 100].EqualsIgnoreCase(intereptedSectorName))
-                    {
-                        successful = true;
-                    }
-                    yield return new WaitForSeconds(0.1f);
-                }
-                if (!successful)
-                {
-                    yield return string.Format("sendtochaterror I cannot find the given sector \"{0}\" in the directory.", intereptedSectorName);
-                    yield break;
-                }
-
-            }
-            else if (Regex.IsMatch(command, @"^area\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-            {
-                string intereptedAreaName = intereptedCommand.Substring(5).Trim();
-                bool directionR = rnd.value < 0.5f, successful = false;
-                if (!menus[1].activeSelf)
-                {
-                    /*
-                    if (menus[2].activeSelf)
-                    {
-                        yield return null;
-                        componentBack.OnInteract();
-                        yield return new WaitForSeconds(0.1f);
-                    }
-                    yield return null;
-                    destinationButton.OnInteract();
-                    yield return new WaitForSeconds(0.1f);
-                    */
-                    yield return string.Format("sendtochaterror I am not at the menu for setting the area. Open destination up first before using this.");
-                    yield break;
-                }
-                for (int x = 0; x < 25 && !successful; x++)
-                {
-                    yield return null;
-                    if (directionR)
-                        nextArea.OnInteract();
-                    else
-                        prevArea.OnInteract();
-                    if (areaNames[selectedDestination].EqualsIgnoreCase(intereptedAreaName))
-                    {
-                        successful = true;
-                    }
-                    yield return new WaitForSeconds(0.1f);
-                }
-                if (!successful)
-                {
-                    yield return string.Format("sendtochaterror I cannot find the given area \"{0}\" in the directory.", intereptedAreaName);
-                    yield break;
-                }
-
-            }
-            else if (Regex.IsMatch(command, @"^comp(onents?)?\s*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-            {
-                intereptedCommand = intereptedCommand.Substring(intereptedCommand.StartsWith("components") ? 11 : intereptedCommand.StartsWith("component") ? 10 : 5);
-                if (Regex.IsMatch(intereptedCommand, @"^(batter(y|ies)|indicators?|manuals?)\s\d+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-                {
-                    string[] parameters = intereptedCommand.Split();
-
-                    int value;
-                    if (!int.TryParse(parameters[1], out value))
-                    {
-                        yield return string.Format("sendtochaterror I do not know what number \"{0}\" is.", parameters[2]);
-                        yield break;
-                    }
-                    if (value < 0 || value > 9)
-                    {
-                        yield return string.Format("sendtochaterror I am not setting \"{1}\" to {0}.", value, parameters[0]);
-                        yield break;
-                    }
-                    if (!menus[2].activeSelf)
-                    {
-                        /*
-                        if (menus[1].activeSelf)
+                        if (alias.Value.Any(a => a.EqualsIgnoreCase(parts[i])))
                         {
-                            yield return null;
-                            destinationBack.OnInteract();
-                            yield return new WaitForSeconds(0.1f);
-                        }
-                        yield return null;
-                        componentButton.OnInteract();
-                        yield return new WaitForSeconds(0.1f);
-                        */
-                        yield return string.Format("sendtochaterror I am not at the menu for setting the specified component. Open Components up first before using this.");
-                        yield break;
-                    }
-                    switch (parameters[0])
-                    {
-                        case "battery":
-                        case "batteries":
-                            {
-                                if (selectedBatteries == value)
-                                {
-                                    yield return string.Format("sendtochaterror The number of batteries is already set to {0}.", selectedBatteries);
-                                    yield break;
-                                }
-                                while (selectedBatteries != value)
-                                {
-                                    yield return null;
-                                    if (selectedBatteries < value)
-                                        addBattery.OnInteract();
-                                    else
-                                        subBattery.OnInteract();
-                                    yield return new WaitForSeconds(0.1f);
-                                }
-                                break;
-                            }
-                        case "indicator":
-                        case "indicators":
-                            {
-                                if (selectedIndicators == value)
-                                {
-                                    yield return string.Format("sendtochaterror The number of indicators is already set to {0}.", selectedIndicators);
-                                    yield break;
-                                }
-                                while (selectedIndicators != value)
-                                {
-                                    yield return null;
-                                    if (selectedIndicators < value)
-                                        addIndicator.OnInteract();
-                                    else
-                                        subIndicator.OnInteract();
-                                    yield return new WaitForSeconds(0.1f);
-                                }
-                                break;
-                            }
-                        case "manuals":
-                        case "manual":
-                            {
-                                if (selectedManuals == value)
-                                {
-                                    yield return string.Format("sendtochaterror The number of manuals is already set to {0}.", selectedManuals);
-                                    yield break;
-                                }
-                                while (selectedManuals != value)
-                                {
-                                    yield return null;
-                                    if (selectedManuals < value)
-                                        addManual.OnInteract();
-                                    else
-                                        subManual.OnInteract();
-                                    yield return new WaitForSeconds(0.1f);
-                                }
-                                break;
-                            }
-                        default:
-                            {
-                                yield return string.Format("sendtochaterror That should not have happened.");
-                                yield break;
-                            }
-                    }
-                }
-                else if (Regex.IsMatch(intereptedCommand, @"^cycleports?\s", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-                {
-                    string intereptedDirection = intereptedCommand.Substring(intereptedCommand.StartsWith("cycleports") ? 11 : 10);
-                    Dictionary<string, string[]> alternativeDirectionIntereptations = new Dictionary<string, string[]>() {
-                        {"l",  new string[] { "left", } },
-                        {"r",  new string[] { "right", } },
-                        };
-                    foreach (KeyValuePair<string, string[]> altDirName in alternativeDirectionIntereptations)
-                    {
-                        if (altDirName.Value.Select(a => a.ToUpper()).Contains(intereptedDirection.ToUpper()))
-                        {
-                            intereptedDirection = altDirName.Key;
+                            parts[i] = alias.Key.ToLowerInvariant();
                             break;
                         }
                     }
-                    if (!alternativeDirectionIntereptations.ContainsKey(intereptedDirection))
+                }
+                if (!validInput(sectList, parts[0]) || !validInput(areaList, parts[1])) 
+                    yield break;
+                sectPos = Array.FindIndex(sectList, name => name.Equals(parts[0], StringComparison.CurrentCultureIgnoreCase));
+                areaPos = Array.FindIndex(areaList, name => name.Equals(parts[1], StringComparison.CurrentCultureIgnoreCase));
+                if (areaPos/25 != sectPos) 
+                    yield break;
+                yield return TPbtnInteract(destinationButton, 0.1f);
+                while (!sectorNames[selectedDestination / 100].EqualsIgnoreCase(parts[0])) yield return TPbtnInteract(nextSector, 0.1f);
+                while (!areaNames[selectedDestination].EqualsIgnoreCase(parts[1])) yield return TPbtnInteract(nextArea, 0.1f); 
+                yield return TPbtnInteract(destinationBack, 0.1f);
+                break;
+            case "sector":
+                if (!validInput(sectList, cmd[1])) 
+                    yield break;
+                yield return TPbtnInteract(destinationButton, 0.1f);
+                while (!(sectorNames[selectedDestination / 100].EqualsIgnoreCase(cmd[1]))) yield return TPbtnInteract(nextSector, 0.1f);
+                yield return TPbtnInteract(destinationBack, 0.1f);
+                break;
+            case "area":
+                areaPos = Array.FindIndex(areaList, name => name.Equals(cmd[1], StringComparison.CurrentCultureIgnoreCase));
+                if (!validInput(areaList, cmd[1]) || (areaPos/25+1 != selectedDestination / 100))
+                    yield break;
+                yield return TPbtnInteract(destinationButton, 0.1f);
+                while (!areaNames[selectedDestination].EqualsIgnoreCase(cmd[1])) yield return TPbtnInteract(nextArea, 0.1f);
+                yield return TPbtnInteract(destinationBack, 0.1f);
+                break;
+            case "ports":
+                if (!validInput(ports, cmd[1]))
+                    yield break;
+                yield return TPbtnInteract(componentButton, 0.1f);
+                while (!ports[selectedPortIdx].EqualsIgnoreCase(cmd[1])) yield return TPbtnInteract(nextPort, 0.1f);
+                yield return TPbtnInteract(componentBack, 0.1f);
+                break;
+            case "components":
+                if ( !Regex.IsMatch(cmd[1], @"^\d/\d/\d$")) 
+                    yield break;
+                int[] input = cmd[1].Split('/').Select(Int32.Parse).ToArray();
+                yield return TPbtnInteract(componentButton, 0.1f);
+                yield return selectComponents( selectedBatteries, input[0], ( selectedBatteries < input[0] ? addBattery   : subBattery  ),  selectedBatteries < input[0]);
+                yield return selectComponents(selectedIndicators, input[1], (selectedIndicators < input[1] ? addIndicator : subIndicator), selectedIndicators < input[1]);
+                yield return selectComponents(   selectedManuals, input[2], (   selectedManuals < input[2] ? addManual    : subManual   ),    selectedManuals < input[2]);
+                yield return TPbtnInteract(componentBack, 0.1f);
+                break;
+            case "batteries": case "indicators": case "manuals":
+                if ( !Regex.IsMatch(cmd[1], @"^\d$")) 
+                    yield break;
+                int currentNumber = cmd[0] == "batteries" ? selectedBatteries : cmd[0] == "indicators" ? selectedIndicators : selectedManuals;
+                int  targetNumber = int.Parse(cmd[1]);
+                KMSelectable buttonAdd = cmd[0] == "batteries" ? addBattery : cmd[0] == "indicators" ? addIndicator : addManual;
+                KMSelectable buttonSub = cmd[0] == "batteries" ? subBattery : cmd[0] == "indicators" ? subIndicator : subManual;
+                yield return TPbtnInteract(componentButton, 0.1f);
+                yield return selectComponents( currentNumber, targetNumber, (currentNumber < targetNumber ? buttonAdd : buttonSub), currentNumber < targetNumber);
+                yield return TPbtnInteract(componentBack, 0.1f);
+                break;
+            case "cycle":
+                if ( !Regex.IsMatch(cmd[1], @"^(?:left|right)$")) 
+                    yield break;
+                bool left = cmd[1] == "left";
+                yield return TPbtnInteract(componentButton, 1f);
+                for (int x = 0; x < 13 && !TwitchShouldCancelCommand; x++)
                     {
-                        yield return string.Format("sendtochaterror I can only go left or right for cycling ports in the directory. I cannot go \"{0}.\"", intereptedDirection);
-                        yield break;
-                    }
-                    if (!menus[2].activeSelf)
-                    {
-                        /*
-                        if (menus[1].activeSelf)
-                        {
-                            yield return null;
-                            destinationBack.OnInteract();
-                            yield return new WaitForSeconds(0.1f);
-                        }
                         yield return null;
-                        componentButton.OnInteract();
-                        yield return new WaitForSeconds(0.1f);
-                        */
-                        yield return string.Format("sendtochaterror I am not at the menu for cycling port types. Open Components up first before using this.");
-                        yield break;
-                    }
-                    bool directionR = intereptedDirection.EqualsIgnoreCase("r");
-                    var HL = directionR ? (nextPort.Highlight.transform.Find("Highlight(Clone)") ?? nextPort.transform) : (prevPort.Highlight.transform.Find("Highlight(Clone)") ?? prevPort.transform);
-                    for (int x = 0; x < 13 && !TwitchShouldCancelCommand; x++)
-                    {
-                        yield return null;
+                        var HL = !left ? (nextPort.Highlight.transform.Find("Highlight(Clone)") ?? nextPort.transform) : (prevPort.Highlight.transform.Find("Highlight(Clone)") ?? prevPort.transform);
                         HL.gameObject.SetActive(true);
-                        if (directionR)
-                            nextPort.OnInteract();
-                        else
-                            prevPort.OnInteract();
-                        yield return new WaitForSeconds(1f);
+                        yield return TPbtnInteract(left ? prevPort : nextPort, 1f);
                         HL.gameObject.SetActive(false);
                     }
                     if (TwitchShouldCancelCommand)
                     {
+                        componentBack.OnInteract();
                         TwitchShouldCancelCommand = false;
-                        yield return "sendtochat Port cycling has been canceled viva TP request to cancel, {0}.";
                         yield break;
                     }
-                }
-                else if (Regex.IsMatch(intereptedCommand, @"^port\s", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-                {
-                    string intereptedPortName = intereptedCommand.Substring(5);
-                    Dictionary<string, string[]> alternativePortIntereptations = new Dictionary<string, string[]>() {
-                        {"PS/2",  new string[] { "PS2" } },
-                        {"Stereo RCA",  new string[] { "StereoRCA", "RCA" } },
-                        {"Component Video",  new string[] { "ComponentVideo" } },
-                        {"AC Power",  new string[] { "AC", "ACPower" } },
-                        {"Composite Video",  new string[] { "CompositeVideo" } },
-                        };
-                    foreach (KeyValuePair<string, string[]> altPortName in alternativePortIntereptations)
-                    {
-                        if (altPortName.Value.Select(a => a.ToUpper()).Contains(intereptedPortName))
-                        {
-                            intereptedPortName = altPortName.Key;
-                            break;
-                        }
-                    }
-                    if (!menus[2].activeSelf)
-                    {
-                        /*
-                        if (menus[1].activeSelf)
-                        {
-                            yield return null;
-                            destinationBack.OnInteract();
-                            yield return new WaitForSeconds(0.1f);
-                        }
-                        yield return null;
-                        componentButton.OnInteract();
-                        yield return new WaitForSeconds(0.1f);
-                        */
-                        yield return string.Format("sendtochaterror I am not at the menu for setting port types. Open Components up first before using this.");
-                        yield break;
-                    }
-                    bool directionR = rnd.value < 0.5f, successful = false;
-                    for (int x = 0; x < 14 && !successful; x++)
-                    {
-                        yield return null;
-                        if (directionR)
-                            nextPort.OnInteract();
-                        else
-                            prevPort.OnInteract();
-                        if (ports[selectedPortIdx].EqualsIgnoreCase(intereptedPortName))
-                        {
-                            successful = true;
-                            break;
-                        }
-                    }
-                    if (!successful)
-                    {
-                        yield return string.Format("sendtochaterror I cannot seem to find the port \"{0}\" in the directory.", intereptedPortName);
-                        yield break;
-                    }
-                }
-                else
-                {
-                    yield break;
-                }
-            }
+                yield return TPbtnInteract(componentBack, 0.1f);
+                break;
+            case "submit":
+                if (cmd[1] != "") yield break;
+                yield return TPbtnInteract(goButton, 0.1f);
+                if (menus[3].activeSelf) yield return "solve";
+                break;
+            default:
+                yield break;
+        };
+    }
+
+    bool validInput(string[] arr, string str) {
+        for (int i = 0; i < arr.Length; i++) if (arr[i] == str) return true;
+        return false;
+    }
+ 
+    IEnumerator selectComponents (int current, int target, KMSelectable btn, bool add ) {
+        while (current != target) {
+            yield return null;
+            btn.OnInteract();
+            yield return new WaitForSeconds(0.1f);
+            current = add ? current + 1 : current - 1;
         }
     }
-}
+
+    IEnumerator TPbtnInteract (KMSelectable btn, float waitTime) {
+        yield return null;
+        btn.OnInteract();
+        yield return new WaitForSeconds(waitTime);
+    }
+}   
