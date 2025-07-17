@@ -1011,18 +1011,20 @@ public class bombDiffusalScript : MonoBehaviour
 
 #pragma warning disable 414
     bool TwitchShouldCancelCommand;
-    bool UseFangysHandler = false;
+    bool UseFangTPHandler = false;
     private string TwitchHelpMessage = "Open the specified menu with \"!{0} open Main/Destination/Components\" Go back to the main menu with \"!{0} back\"\n" +
         "Set both the destination's sector and area with \"!{0} set destination <Sector Name>;<Area Name>\" (',' can be used instead of ';'.)"
         + "Set just the destination's sector or area with \"!{0} set sector/area <Sector Name>/<Area Name>\""
+        + "If you are unable to set a name of an area or sector due to automod reasons, you may use \"!{0} sector/area right/left #\" to manually set the sector/area."
         + "Set the specified components with \"!{0} set component batteries/manuals/indicators/port #/(port name)\""
         + "Cycle the options on the ports left or right with \"!{0} component cycleports left/right\" \"set\" is optional. To check on the ports, you may use \"!{0} tilt r\" to check. (This is a general TP command.) Submit the configurations with \"!{0} go/submit/send\" Use Fangy's TP Handling with \"!{0} usefangytp\"";
     private const string TPHelpMessageOriginal = "Open the specified menu with \"!{0} open Main/Destination/Components\" Go back to the main menu with \"!{0} back\"\n" +
         "Set both the destination's sector and area with \"!{0} set destination <Sector Name>;<Area Name>\" (',' can be used instead of ';'.)"
         + "Set just the destination's sector or area with \"!{0} set sector/area <Sector Name>/<Area Name>\""
+        + "If you are unable to set a name of an area or sector due to automod reasons, you may use \"!{0} sector/area right/left #\" to manually set the sector/area."
         + "Set the specified components with \"!{0} set component batteries/manuals/indicators/port #/(port name)\""
         + "Cycle the options on the ports left or right with \"!{0} component cycleports left/right\" \"set\" is optional. To check on the ports, you may use \"!{0} tilt r\" to check. (This is a general TP command.) Submit the configurations with \"!{0} go/submit/send\" Use Fangy's TP Handling with \"!{0} usefangytp\"";
-    private const string TPHelpMessageFangy = "\"!{0} destination <sector>,<area> | sector <sector> | area <area> | port <port> | components #/#/# | batteries/indicators/manuals <#> | cycle left/right | submit\" (sets the destination's sector and area, sets the destination's sector only, sets the destination's area only, sets the port type, sets the number of batteries, indicators, and manuals, cycles the possible ports left or right, submits the current configuration)";
+    private const string TPHelpMessageFang = "\"!{0} destination <sector>,<area> | sector <sector> | area <area> | port <port> | components #/#/# | batteries/indicators/manuals <#> | cycle left/right | submit\" (sets the destination's sector and area, sets the destination's sector only, sets the destination's area only, sets the port type, sets the number of batteries, indicators, and manuals, cycles the possible ports left or right, submits the current configuration)";
     Dictionary<string, string[]> aliases = new Dictionary<string, string[]>() {
             {      "Destination",  new string[] { "Destinations", "Dest", } },
             {       "Components",  new string[] { "Components", "Comp", "Component" } },
@@ -1040,9 +1042,18 @@ public class bombDiffusalScript : MonoBehaviour
             {  "Component Video",  new string[] { "ComponentVideo", "Component" } },
             {         "AC Power",  new string[] { "AC", "ACPower" } },
             {  "Composite Video",  new string[] { "CompositeVideo", "Composite" } },
-        };
+            {            "Niger",  new string[] { "NE", "NER", "Nizher" } },
+        }, alternativeSectorNames = new Dictionary<string, string[]>() {
+            { "USA #1",  new string[] { "USA 1", "USA#1", "USA1" } },
+            { "USA #2",  new string[] { "USA 2", "USA#2", "USA2" } },
+            { "Rest of America",  new string[] { "RestOfAmerica", "RestOf America", "Rest OfAmerica" } },
+        }, alternativeAreaNames = new Dictionary<string, string[]>() {
+            { "Niger",  new string[] { "NE", "NER", "Nizher" } },
+        }
+        ;
 #pragma warning restore 414
     // Fangy's TP Handling begins here.
+    #region FangTPHandler
     bool validInput(string[] arr, string str)
     {
         for (int i = 0; i < arr.Length; i++) if (arr[i] == str) return true;
@@ -1064,7 +1075,7 @@ public class bombDiffusalScript : MonoBehaviour
         btn.OnInteract();
         yield return new WaitForSeconds(waitTime);
     }
-    IEnumerator ProcessTwitchCommandFangy(string command)
+    IEnumerator ProcessTwitchCommandFang(string command)
     {
         string[] areaList = areaNames.Values.ToArray(); areaList = Array.ConvertAll(areaList, d => d.ToLower());
         string[] sectList = sectorNames.Values.ToArray(); sectList = Array.ConvertAll(sectList, d => d.ToLower());
@@ -1076,7 +1087,7 @@ public class bombDiffusalScript : MonoBehaviour
             cmdSwitchOriginal = Regex.Match(command, @"^useoriginaltp$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (cmdSwitchOriginal.Success)
         {
-            UseFangysHandler = false;
+            UseFangTPHandler = false;
             TwitchHelpMessage = TPHelpMessageOriginal;
             yield return "sendtochat {0}, Bomb Diffusal (#{1}) has switched to using the original TP handling. Check the help message on how to use the original handler.";
             yield break;
@@ -1197,6 +1208,7 @@ public class bombDiffusalScript : MonoBehaviour
         };
         yield break;
     }
+    #endregion
     // The original TP Handler begins here.
     IEnumerator ProcessTwitchCommand(string command)
     {
@@ -1209,16 +1221,16 @@ public class bombDiffusalScript : MonoBehaviour
             yield return "sendtochaterror {0}, Bomb Diffusal (#{1}) is printing out the receipt. No other commands can be accepted.";
             yield break;
         }
-        if (UseFangysHandler)
+        if (UseFangTPHandler)
         {
-            yield return ProcessTwitchCommandFangy(command);
+            yield return ProcessTwitchCommandFang(command);
             yield break;
         }
         string intereptedCommand = command.Trim().ToLower();
         if (Regex.IsMatch(command, @"^usefangytp$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
-            UseFangysHandler = true;
-            TwitchHelpMessage = TPHelpMessageFangy;
+            UseFangTPHandler = true;
+            TwitchHelpMessage = TPHelpMessageFang;
             yield return "sendtochat {0}, Bomb Diffusal (#{1}) has switched to using Fangy's TP handling. Check the help message on how to use Fangy's handler.";
             if (!menus[0].activeSelf)
             {
@@ -1270,6 +1282,63 @@ public class bombDiffusalScript : MonoBehaviour
                 yield return "sendtochat Has {0} gone back enough on Bomb Diffusal (#{1})?";
             }
             yield break;
+        }
+        else if (Regex.IsMatch(command, @"^(area|sector)\s(r(ight)?|l(eft)?)\s\d+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            var intCmdParts = intereptedCommand.Split().Where(a => !string.IsNullOrEmpty(a)).ToArray();
+            string intDirection = intCmdParts.ElementAtOrDefault(1);
+            bool intItemSector = intCmdParts.ElementAtOrDefault(0).EqualsIgnoreCase("sector");
+            int amountToCycle;
+            Dictionary<string, string[]> alternativeDirectionIntereptations = new Dictionary<string, string[]>() {
+                        {"l",  new string[] { "left", } },
+                        {"r",  new string[] { "right", } },
+                        };
+            foreach (KeyValuePair<string, string[]> altDirName in alternativeDirectionIntereptations)
+            {
+                if (altDirName.Value.Select(a => a.ToUpper()).Contains(intDirection.ToUpper()))
+                {
+                    intDirection = altDirName.Key;
+                    break;
+                }
+            }
+            if (!int.TryParse(intCmdParts.ElementAtOrDefault(2), out amountToCycle) || amountToCycle < 1 || amountToCycle > 24)
+            {
+                yield return string.Format("sendtochaterror I am not cycling this many times: \"{0}\"", intCmdParts.ElementAtOrDefault(2));
+                yield break;
+            }
+            if (!menus[1].activeSelf)
+            {
+                /*
+                if (menus[2].activeSelf)
+                {
+                    yield return null;
+                    componentBack.OnInteract();
+                }
+                yield return null;
+                destinationButton.OnInteract();*/
+                yield return string.Format("sendtochaterror I am not at the menu for setting the area. Open destination up first before using this.");
+                yield break;
+            }
+            var directionR = intDirection == "r";
+            yield return null;
+            for (var x = 0; x < amountToCycle; x++)
+            {
+                if (intItemSector)
+                {
+                    if (directionR)
+                        nextSector.OnInteract();
+                    else
+                        prevSector.OnInteract();
+                }
+                else
+                {
+                    if (directionR)
+                        nextArea.OnInteract();
+                    else
+                        prevArea.OnInteract();
+                }
+                yield return new WaitForSeconds(0.1f);
+            }
         }
         else if (Regex.IsMatch(command, @"^open\s", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
@@ -1328,11 +1397,6 @@ public class bombDiffusalScript : MonoBehaviour
             }
             if (Regex.IsMatch(command, @"^destination\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             {
-                Dictionary<string, string[]> alternativeSectorNames = new Dictionary<string, string[]>() {
-                                {"USA #1",  new string[] { "USA 1", "USA#1", "USA1" } },
-                                {"USA #2",  new string[] { "USA 2", "USA#2", "USA2" } },
-                                {"Rest of America",  new string[] { "RestOfAmerica", "RestOf America", "Rest OfAmerica" } },
-                            };
                 string[] intereptedParts = intereptedCommand.ToLowerInvariant().Replace("destination","").Trim().Split(new char[] { ',', ';' });
                 if (intereptedParts.Length != 2)
                 {
@@ -1346,6 +1410,14 @@ public class bombDiffusalScript : MonoBehaviour
                     if (altSectorNames.Value.Any(a => a.EqualsIgnoreCase(intereptedSectorName)))
                     {
                         intereptedSectorName = altSectorNames.Key;
+                        break;
+                    }
+                }
+                foreach (KeyValuePair<string, string[]> altAreaNames in alternativeAreaNames)
+                {
+                    if (altAreaNames.Value.Any(a => a.EqualsIgnoreCase(intereptedAreaName)))
+                    {
+                        intereptedAreaName = altAreaNames.Key;
                         break;
                     }
                 }
@@ -1405,11 +1477,6 @@ public class bombDiffusalScript : MonoBehaviour
             }
             else if (Regex.IsMatch(command, @"^sector\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             {
-                Dictionary<string, string[]> alternativeSectorNames = new Dictionary<string, string[]>() {
-                                {"USA #1",  new string[] { "USA 1", "USA#1", "USA1" } },
-                                {"USA #2",  new string[] { "USA 2", "USA#2", "USA2" } },
-                                {"Rest of America",  new string[] { "RestOfAmerica", "RestOf America", "Rest OfAmerica" } },
-                            };
                 string intereptedSectorName = intereptedCommand.Substring(7).Trim();
 
                 foreach (KeyValuePair<string, string[]> altSectorNames in alternativeSectorNames)
@@ -1460,6 +1527,14 @@ public class bombDiffusalScript : MonoBehaviour
             else if (Regex.IsMatch(command, @"^area\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             {
                 string intereptedAreaName = intereptedCommand.Substring(5).Trim();
+                foreach (KeyValuePair<string, string[]> altAreaNames in alternativeAreaNames)
+                {
+                    if (altAreaNames.Value.Any(a => a.EqualsIgnoreCase(intereptedAreaName)))
+                    {
+                        intereptedAreaName = altAreaNames.Key;
+                        break;
+                    }
+                }
                 bool directionR = rnd.value < 0.5f, successful = false;
                 if (!menus[1].activeSelf)
                 {
