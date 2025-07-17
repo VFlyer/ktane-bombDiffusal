@@ -1013,17 +1013,17 @@ public class bombDiffusalScript : MonoBehaviour
     bool TwitchShouldCancelCommand;
     bool UseFangTPHandler = false;
     private string TwitchHelpMessage = "Open the specified menu with \"!{0} open Main/Destination/Components\" Go back to the main menu with \"!{0} back\"\n" +
-        "Set both the destination's sector and area with \"!{0} set destination <Sector Name>;<Area Name>\" (',' can be used instead of ';'.)"
-        + "Set just the destination's sector or area with \"!{0} set sector/area <Sector Name>/<Area Name>\""
-        + "If you are unable to set a name of an area or sector due to automod reasons, you may use \"!{0} sector/area right/left #\" to manually set the sector/area."
+        " Set both the destination's sector and area with \"!{0} set destination <Sector Name>;<Area Name>\" (',' can be used instead of ';'.)"
+        + " Set just the destination's sector or area with \"!{0} set sector/area <Sector Name>/<Area Name>\""
+        + " If you are unable to set a name of an area or sector due to automod reasons, you may use \"!{0} sector/area right/left #\" to manually set the sector/area.\n"
         + "Set the specified components with \"!{0} set component batteries/manuals/indicators/port #/(port name)\""
-        + "Cycle the options on the ports left or right with \"!{0} component cycleports left/right\" \"set\" is optional. To check on the ports, you may use \"!{0} tilt r\" to check. (This is a general TP command.) Submit the configurations with \"!{0} go/submit/send\" Use Fangy's TP Handling with \"!{0} usefangytp\"";
+        + " Cycle the options on the ports left or right with \"!{0} component cycleports left/right\" \"set\" is optional. To check on the ports, you may use \"!{0} tilt r\" to check. (This is a general TP command.) Submit the configurations with \"!{0} go/submit/send\" Use Fangy's TP Handling with \"!{0} usefangytp\"";
     private const string TPHelpMessageOriginal = "Open the specified menu with \"!{0} open Main/Destination/Components\" Go back to the main menu with \"!{0} back\"\n" +
-        "Set both the destination's sector and area with \"!{0} set destination <Sector Name>;<Area Name>\" (',' can be used instead of ';'.)"
-        + "Set just the destination's sector or area with \"!{0} set sector/area <Sector Name>/<Area Name>\""
-        + "If you are unable to set a name of an area or sector due to automod reasons, you may use \"!{0} sector/area right/left #\" to manually set the sector/area."
+        " Set both the destination's sector and area with \"!{0} set destination <Sector Name>;<Area Name>\" (',' can be used instead of ';'.)"
+        + " Set just the destination's sector or area with \"!{0} set sector/area <Sector Name>/<Area Name>\""
+        + " If you are unable to set a name of an area or sector due to automod reasons, you may use \"!{0} sector/area right/left #\" to manually set the sector/area.\n"
         + "Set the specified components with \"!{0} set component batteries/manuals/indicators/port #/(port name)\""
-        + "Cycle the options on the ports left or right with \"!{0} component cycleports left/right\" \"set\" is optional. To check on the ports, you may use \"!{0} tilt r\" to check. (This is a general TP command.) Submit the configurations with \"!{0} go/submit/send\" Use Fangy's TP Handling with \"!{0} usefangytp\"";
+        + " Cycle the options on the ports left or right with \"!{0} component cycleports left/right\" \"set\" is optional. To check on the ports, you may use \"!{0} tilt r\" to check. (This is a general TP command.) Submit the configurations with \"!{0} go/submit/send\" Use Fangy's TP Handling with \"!{0} usefangytp\"";
     private const string TPHelpMessageFang = "\"!{0} destination <sector>,<area> | sector <sector> | area <area> | port <port> | components #/#/# | batteries/indicators/manuals <#> | cycle left/right | submit\" (sets the destination's sector and area, sets the destination's sector only, sets the destination's area only, sets the port type, sets the number of batteries, indicators, and manuals, cycles the possible ports left or right, submits the current configuration)";
     Dictionary<string, string[]> aliases = new Dictionary<string, string[]>() {
             {      "Destination",  new string[] { "Destinations", "Dest", } },
